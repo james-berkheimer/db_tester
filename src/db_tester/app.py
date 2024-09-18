@@ -4,7 +4,7 @@ from flask import Flask
 
 from .config import DBConfig
 from .extensions import db
-from .populate_db import populate_db
+from .populate_db import populate_db_bulk_add
 
 
 def init_db(app):
@@ -12,7 +12,7 @@ def init_db(app):
     with app.app_context():
         db.create_all()
         start_time = time.time()
-        populate_db()
+        populate_db_bulk_add()
         end_time = time.time()
         elapsed_time = end_time - start_time
         print(f"populate_db function executed in {elapsed_time:.2f} seconds")

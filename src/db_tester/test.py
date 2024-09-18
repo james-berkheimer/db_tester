@@ -19,13 +19,29 @@ def test1():
     print(f"{playlist.title}: {playlist.tracks.count()} tracks")
     items = playlist.tracks.all()
     for item in items:
+        print(type(item))
         print(f"  ({item.track_number}) {item.title} - {item.album_title} - {item.artist_title}")
 
 
 def test2():
     playlists = session.query(Playlist).all()
     for playlist in playlists:
-        print(f"{playlist.title}: {playlist.tracks.count()} tracks")
-        # items = playlist.tracks.all()
-        # for item in items:
-        #     print(f"  ({item.track_number}) {item.title} - {item.album_title} - {item.artist_title}")
+        if playlist.playlist_type == "audio":
+            print(
+                f"{playlist.title}: {playlist.tracks.count()} tracks | {int(playlist.duration / 100)} seconds"
+            )
+        if playlist.playlist_type == "video":
+            print(
+                f"{playlist.title}: {playlist.episodes.count() + playlist.movies.count()} episodes & movies | {int(playlist.duration / 100)} seconds"
+            )
+        if playlist.playlist_type == "photo":
+            print(f"{playlist.title}: {playlist.photos.count()} photos")
+
+
+def test3():
+    playlists = session.query(Playlist).all()
+    for playlist in playlists:
+        if playlist.playlist_type == "audio":
+            items = playlist.tracks.all()
+            for item in items:
+                print(type(item))

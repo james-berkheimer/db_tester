@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flask App</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='index.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', (event) => {
+            var socket = io();
+
+            socket.on('log_message', function(data) {
+                var logElement = document.getElementById('log');
+                var newMessage = document.createElement('div');
+                newMessage.innerText = data.message;
+                logElement.appendChild(newMessage);
+            });
+
+            document.getElementById('refreshButton').addEventListener('click', function() {
+                fetch('/refresh', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data.message);
+                })
+                .catch(error => console.error('Error:', error));
+            });
+        });
+    </script>
+</head>
+<body>
+    <h1>Flask App</h1>
+    <button id="refreshButton">Refresh</button>
+    <div id="log"></div>
+</body>
+</html>

@@ -20,8 +20,11 @@ dependencies = [
     "flask-migrate",
     "flask-restful",
     "flask-sqlalchemy",
+    "flask-socketio",
     "flask-wtf",
     "plexapi",
+    "click",
+    "colorlog",
 ]
 
 [project.optional-dependencies]
@@ -42,6 +45,9 @@ cmd = "db_tester.main:main"
 test1 = "db_tester.test:test1"
 test2 = "db_tester.test:test2"
 test3 = "db_tester.test:test3"
+test4 = "db_tester.test:test4"
+test5 = "db_tester.test:test5"
+test6 = "db_tester.test:test6"
 
 [project.urls]
 homepage = "https://example.com"

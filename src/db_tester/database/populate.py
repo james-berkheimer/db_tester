@@ -5,26 +5,26 @@ from ..models import Episode, Movie, Photo, Playlist, Track
 from ..plex import get_server
 from .helpers import (
     get_add_remove_playlists,
-    get_out_of_date_playlists,
-    parse_audio_playlist,
-    parse_photo_playlist,
-    parse_video_playlist,
+    get_out_of_date_data,
+    parse_playlist_item_updates,
+    parse_playlists,
 )
 
 # Globals vars
 db_tracks_dict = {}
-db_episode_titles = {}
-db_movie_titles = {}
-db_photo_titles = {}
+db_episode_dict = {}
+db_movie_dict = {}
+db_photo_dict = {}
 playlist_tracks_dict = {}
 playlist_videos_dict = {}
 playlist_photos_dict = {}
+remove_item_dict = {}
 
 
 def initialize_globals():
     global plex_server, plex_playlists
     global db_playlists, db_tracks, db_episodes, db_movies, db_photos
-    global db_playlist_dict, db_tracks_dict, db_episode_titles, db_movie_titles, db_photo_titles
+    global db_playlist_dict, db_tracks_dict, db_episode_dict, db_movie_dict, db_photo_dict
     global playlist_tracks_dict, playlist_videos_dict, playlist_photos_dict
 
     # Global plex objects
@@ -42,7 +42,7 @@ def initialize_globals():
         (db_track.title, db_track.track_number, db_track.album_title, db_track.artist_name): db_track
         for db_track in db_tracks
     }
-    db_episode_titles = {
+    db_episode_dict = {
         (
             db_episode.title,
             db_episode.episode_number,
@@ -51,52 +51,16 @@ def initialize_globals():
         ): db_episode
         for db_episode in db_episodes
     }
-    db_movie_titles = {
+    db_movie_dict = {
         (db_movie.title, db_movie.year, db_movie.duration): db_movie for db_movie in db_movies
     }
-    db_photo_titles = {(db_photo.title, db_photo.thumbnail): db_photo for db_photo in db_photos}
+    db_photo_dict = {(db_photo.title, db_photo.thumbnail): db_photo for db_photo in db_photos}
 
     # Initialize playlist dictionaries
     playlist_tracks_dict.clear()
     playlist_videos_dict.clear()
     playlist_photos_dict.clear()
-
-
-def _parse_playlists(playlists_to_add):
-    try:
-        if playlists_to_add:
-            for plex_playlist_title in playlists_to_add:
-                plex_playlist = next(
-                    (pl for pl in plex_playlists if pl.title == plex_playlist_title), None
-                )
-                if plex_playlist.playlistType == "audio":
-                    parse_audio_playlist(
-                        db_playlist_dict, db_tracks_dict, playlist_tracks_dict, plex_playlist
-                    )
-                elif plex_playlist.playlistType == "video":
-                    parse_video_playlist(
-                        db_playlist_dict,
-                        db_episode_titles,
-                        db_movie_titles,
-                        playlist_videos_dict,
-                        plex_playlist,
-                    )
-                elif plex_playlist.playlistType == "photo":
-                    parse_photo_playlist(
-                        db_playlist_dict,
-                        db_photo_titles,
-                        playlist_photos_dict,
-                        plex_playlist,
-                    )
-                else:
-                    print(f"Skipping playlist: {plex_playlist.title}")
-        else:
-            print("No playlists to add")
-
-    except Exception as e:
-        traceback.print_exc()
-        db.session.rollback()
-        raise e
+    remove_item_dict.clear()
 
 
 def run_db_population():
@@ -107,9 +71,20 @@ def run_db_population():
         initialize_globals()
 
         playlists_to_add, playlists_to_remove = get_add_remove_playlists(db_playlists, plex_playlists)
-        # out_of_date_playlists = get_out_of_date_playlists(db_playlists)
 
-        _parse_playlists(playlists_to_add)
+        # _parse_playlists(playlists_to_add)
+        parse_playlists(
+            playlists_to_add,
+            plex_playlists,
+            db_playlist_dict,
+            db_tracks_dict,
+            playlist_tracks_dict,
+            db_episode_dict,
+            db_movie_dict,
+            playlist_videos_dict,
+            db_photo_dict,
+            playlist_photos_dict,
+        )
 
         if playlists_to_remove:
             for playlist in playlists_to_remove:
@@ -117,7 +92,24 @@ def run_db_population():
                 db_playlist = db_playlist_dict[playlist]
                 db.session.delete(db_playlist)
 
+        update_data = get_out_of_date_data(db_playlists, plex_playlists)
+        parse_playlist_item_updates(
+            update_data,
+            db_tracks_dict,
+            playlist_tracks_dict,
+            db_episode_dict,
+            db_movie_dict,
+            playlist_videos_dict,
+            db_photo_dict,
+            playlist_photos_dict,
+            remove_item_dict,
+            plex_playlists,
+        )
+
         # Commit new playlists to the database
+        for db_playlist, tracks in playlist_tracks_dict.items():
+            print(f"Adding playlist: {db_playlist.title}")
+
         print(f"Adding {len(playlist_tracks_dict)} audio playlists to the database")
         audio_playlists = list(playlist_tracks_dict.keys())
         db.session.bulk_save_objects(audio_playlists)
@@ -166,22 +158,22 @@ def run_db_population():
                         db_playlist.photos.append(db_photo)
                 db.session.add(db_playlist)
 
-        # Commit new tracks, episodes, movies, and photos to the database if there are any
-        # if db_tracks_dict:
-        #     print(f"Adding {len(db_tracks_dict)} tracks to the database")
-        #     db.session.bulk_save_objects(list(db_tracks_dict.values()))
+        # Remove items from playlists
+        for db_playlist, items in remove_item_dict.items():
+            for item in items:
+                if type(item) is Track:
+                    db_playlist.tracks.remove(item)
+                elif type(item) is Episode:
+                    db_playlist.episodes.remove(item)
+                elif type(item) is Movie:
+                    db_playlist.movies.remove(item)
+                elif type(item) is Photo:
+                    db_playlist.photos.remove(item)
+                print(f"Disassociating {item.title} with {db_playlist.title}")
+            db.session.add(db_playlist)
 
-        # if db_episode_titles:
-        #     print(f"Adding {len(db_episode_titles)} episodes to the database")
-        #     db.session.bulk_save_objects(list(db_episode_titles.values()))
-
-        # if db_movie_titles:
-        #     print(f"Adding {len(db_movie_titles)} movies to the database")
-        #     db.session.bulk_save_objects(list(db_movie_titles.values()))
-
-        # if db_photo_titles:
-        #     print(f"Adding {len(db_photo_titles)} photos to the database")
-        #     db.session.bulk_save_objects(list(db_photo_titles.values()))
+        # Commit the session to persist changes
+        db.session.commit()
 
         # Commit new tracks, episodes, movies, and photos to the database if there are any
         if playlist_tracks_dict:

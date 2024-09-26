@@ -1,11 +1,10 @@
-import os
 import time
 
 from flask import Flask
 
 from .apps.refresh.routes import main
-from .config import DBConfig
-from .database import run_db_population
+from .config import DBConfig, ServerConfig
+from .database.populate import run_db_population
 from .extensions import db, socketio
 
 
@@ -22,22 +21,13 @@ def init_db(app):
 
 def create_app():
     app = Flask(__name__)
-
-    # configure the SQLite database, relative to the app instance folder
     app.config.from_object(DBConfig)
-
-    # if os.getenv("IGNORE_DB_CREATION") == "1":
     init_db(app)
-
-    # Initialize SocketIO
     socketio.init_app(app)
-
-    # Register the Blueprint
     app.register_blueprint(main)
-
     return app
 
 
 app = create_app()
 if __name__ == "__main__":
-    socketio.run(app)
+    socketio.run(app, host=ServerConfig.HOST, port=ServerConfig.PORT, debug=ServerConfig.DEBUG)

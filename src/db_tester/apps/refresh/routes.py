@@ -1,11 +1,11 @@
 import time
 
-from flask import Blueprint, jsonify, render_template
+from flask import Blueprint, current_app, jsonify, render_template
 
-from ...database.populate import run_db_population
+from ...database import DatabasePopulator
 from ...extensions import socketio
 
-# Create a Blueprint
+populator = DatabasePopulator()
 main = Blueprint("main", __name__)
 
 
@@ -16,8 +16,9 @@ def index():
 
 @main.route("/refresh", methods=["POST"])
 def refresh():
+    current_app.logger.info("Refreshing database")
     start_time = time.time()
-    run_db_population()
+    populator.run_db_population()
     end_time = time.time()
     elapsed_time = end_time - start_time
     completed_message = f"Refresh executed in {elapsed_time:.2f} seconds"

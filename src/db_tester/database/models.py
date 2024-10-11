@@ -3,7 +3,7 @@ from typing import List, Optional
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Table, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from .extensions import db
+from ..extensions import db
 
 playlist_track = Table(
     "playlist_track",
@@ -66,6 +66,18 @@ class Playlist(db.Model):
 
     def total_items(self) -> int:
         return self.tracks.count() + self.episodes.count() + self.movies.count() + self.photos.count()
+
+    def get_indexed_titles(self):
+        if self.playlist_type == "audio":
+            return {track.title for track in self.tracks}
+        elif self.playlist_type == "video":
+            episode_keys = {(ep.title, ep.season_number, ep.show_title) for ep in self.episodes}
+            movie_keys = {(mv.title, mv.year) for mv in self.movies}
+            return episode_keys, movie_keys
+        elif self.playlist_type == "photo":
+            return {photo.title for photo in self.photos}
+        else:
+            return set()
 
 
 class Track(db.Model):

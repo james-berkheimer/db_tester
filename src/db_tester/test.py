@@ -1,8 +1,9 @@
-from db_tester.models import Episode, Movie
+# from db_tester.database.models import Episode, Movie
 
-from .database.helpers import get_add_remove_playlist_items, get_out_of_date_data
+# from .database.helpers import get_add_remove_playlist_items, get_out_of_date_data
+from .database.helpers import get_out_of_date_data
+from .database.models import Playlist
 from .extensions import session
-from .models import Playlist
 from .plex.server import get_server
 
 
@@ -103,3 +104,16 @@ def test6():
 
             for photo in remove_photos:
                 print(f"Disassociating {photo.title} with {playlist.title}\n")
+
+
+def test7():
+    db_playlists = session.query(Playlist).filter(Playlist.title == "Mitchell and Webb").all()
+    plex_server = get_server()
+    playlist = plex_server.playlist("Mitchell and Webb")
+
+    print(
+        f"DB playlist: {db_playlists[0].title} | {db_playlists[0].tracks.count()} tracks | {db_playlists[0].duration} seconds"
+    )
+    print(
+        f"Plex playlist 2: {playlist.title} | {len(playlist.items())} tracks | {playlist.duration} seconds"
+    )

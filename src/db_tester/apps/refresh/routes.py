@@ -3,7 +3,7 @@ import time
 from flask import Blueprint, current_app, jsonify, render_template
 
 from ...database import DatabasePopulator
-from ...extensions import socketio
+from ...database.extensions import socketio
 
 populator = DatabasePopulator()
 main = Blueprint("main", __name__)

@@ -1,10 +1,22 @@
 # from db_tester.database.models import Episode, Movie
 
 # from .database.helpers import get_add_remove_playlist_items, get_out_of_date_data
+import logging
+import os
+import xml.etree.ElementTree as ET
+from xml.etree import ElementTree
+
+import requests
+from plexapi.exceptions import BadRequest, NotFound, TwoFactorRequired, Unauthorized
+from requests.status_codes import _codes as codes
+
+from . import utils
+from .database.extensions import session
 from .database.helpers import get_out_of_date_data
 from .database.models import Playlist
-from .extensions import session
 from .plex.server import get_server
+
+logger = logging.getLogger("app_logger")
 
 
 def test1():
@@ -67,10 +79,9 @@ def test4():
 def test5():
     # test_audio_playlist_1
     plex_server = get_server()
-    plex_playlists = plex_server.playlists()
-    db_playlist = session.query(Playlist).filter(Playlist.title == "test_audio_playlist_1").all()
-    plex_playlist = next((pl for pl in plex_playlists if pl.title == db_playlist[0].title), None)
-    print(f"Plex playlist: {plex_playlist.title}")
+    sections = plex_server.library.sections()
+    for section in sections:
+        print(f"{section.title}: {section.key}")
 
 
 def test6():
@@ -107,13 +118,117 @@ def test6():
 
 
 def test7():
-    db_playlists = session.query(Playlist).filter(Playlist.title == "Mitchell and Webb").all()
-    plex_server = get_server()
-    playlist = plex_server.playlist("Mitchell and Webb")
+    # sectionId = 1
+    # url = f"http://192.168.1.42:32400/library/sections/{sectionId}"
+    url = "http://192.168.1.42:32400"
+    playlists_url = url + "/playlists"
 
-    print(
-        f"DB playlist: {db_playlists[0].title} | {db_playlists[0].tracks.count()} tracks | {db_playlists[0].duration} seconds"
-    )
-    print(
-        f"Plex playlist 2: {playlist.title} | {len(playlist.items())} tracks | {playlist.duration} seconds"
-    )
+    api_key = os.getenv("PLEX_TOKEN")
+
+    headers = {"X-Plex-Token": api_key}
+
+    playlist_response = requests.request("GET", playlists_url, headers=headers)
+
+    if playlist_response.status_code == 200:
+        root = ET.fromstring(playlist_response.content)
+        playlists = [
+            (
+                playlist.get("key"),
+                playlist.get("title"),
+                playlist.get("duration"),
+                playlist.get("leafCount"),
+                playlist.get("playlistType"),
+            )
+            for playlist in root.findall(".//Playlist")
+        ]
+        for key, title, duration, leaf_count, playlistType in playlists:
+            if playlistType == "audio":
+                print(f"Key: {key}, Title: {title}, Duration: {duration}, Leaf Count: {leaf_count}")
+                items_response = requests.request("GET", url + key, headers=headers)
+                if items_response.status_code == 200:
+                    root = ET.fromstring(items_response.content)
+                    items = [
+                        (
+                            item.get("key"),
+                            item.get("title"),
+                            item.get("duration"),
+                            item.get("index"),
+                            item.get("type"),
+                            item.get("parentTitle"),
+                            item.get("grandparentTitle"),
+                        )
+                        for item in root.findall(".//Track")
+                    ]
+                    for key, title, duration, index, item_type, parent_title, grandparent_title in items:
+                        print(
+                            f"\tKey: {key}, Type: {item_type}, Title: {grandparent_title}/{parent_title}/{title}, Index: {index}, Duration: {duration}"
+                        )
+
+    else:
+        print(f"Failed to retrieve data: {playlist_response.status_code}")
+
+
+# http://192.168.1.42:32400/web/index.html#!/
+
+
+def test8():
+    key = "https://plex.tv/api/v2/user"
+    data = query(key)
+
+
+def reset_base_headers():
+    """Convenience function returns a dict of all base X-Plex-* headers for session requests."""
+    import plexapi
+
+    return {
+        "X-Plex-Platform": plexapi.X_PLEX_PLATFORM,
+        "X-Plex-Platform-Version": plexapi.X_PLEX_PLATFORM_VERSION,
+        "X-Plex-Provides": plexapi.X_PLEX_PROVIDES,
+        "X-Plex-Product": plexapi.X_PLEX_PRODUCT,
+        "X-Plex-Version": plexapi.X_PLEX_VERSION,
+        "X-Plex-Device": plexapi.X_PLEX_DEVICE,
+        "X-Plex-Device-Name": plexapi.X_PLEX_DEVICE_NAME,
+        "X-Plex-Client-Identifier": plexapi.X_PLEX_IDENTIFIER,
+        "X-Plex-Language": plexapi.X_PLEX_LANGUAGE,
+        "X-Plex-Sync-Version": "2",
+        "X-Plex-Features": "external-media",
+    }
+
+
+def _headers(self, **kwargs):
+    """Returns dict containing base headers for all requests to the server."""
+    BASE_HEADERS = reset_base_headers()
+    headers = BASE_HEADERS.copy()
+    if self._token:
+        headers["X-Plex-Token"] = self._token
+    headers.update(kwargs)
+    return headers
+
+
+def query(url, method=None, headers=None, timeout=None, **kwargs):
+    _session = requests.Session()
+    method = method or _session.get
+    timeout = 30
+    logging.debug("%s %s %s", method.__name__.upper(), url, kwargs.get("json", ""))
+    headers = _headers(**headers or {})
+    response = method(url, headers=headers, timeout=timeout, **kwargs)
+    if response.status_code not in (200, 201, 204):  # pragma: no cover
+        codename = codes.get(response.status_code)[0]
+        errtext = response.text.replace("\n", " ")
+        message = f"({response.status_code}) {codename}; {response.url} {errtext}"
+        if response.status_code == 401:
+            if "verification code" in response.text:
+                raise TwoFactorRequired(message)
+            raise Unauthorized(message)
+        elif response.status_code == 404:
+            raise NotFound(message)
+        elif response.status_code == 422 and "Invalid token" in response.text:
+            raise Unauthorized(message)
+        else:
+            raise BadRequest(message)
+    if "application/json" in response.headers.get("Content-Type", ""):
+        return response.json()
+    elif "text/plain" in response.headers.get("Content-Type", ""):
+        return response.text.strip()
+    data = utils.cleanXMLString(response.text).encode("utf8")
+    return ElementTree.fromstring(data) if data.strip() else None

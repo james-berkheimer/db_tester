@@ -4,7 +4,7 @@ from flask import Flask
 
 from .apps.refresh.routes import main
 from .config import DBConfig, ServerConfig
-from .extensions import socketio
+from .database.extensions import socketio
 
 
 def create_app():

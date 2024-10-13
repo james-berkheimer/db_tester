@@ -49,6 +49,7 @@ test4 = "db_tester.test:test4"
 test5 = "db_tester.test:test5"
 test6 = "db_tester.test:test6"
 test7 = "db_tester.test:test7"
+test8 = "db_tester.test:test8"
 
 [project.urls]
 homepage = "https://example.com"

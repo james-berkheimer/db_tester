@@ -1,8 +1,6 @@
 import os
 from typing import Any, Dict, Optional
 
-# from ..utils.logging import LOGGER
-
 
 class AuthenticationError(Exception):
     pass
@@ -28,16 +26,11 @@ class Authentication:
         }
         return masked_data
 
-    # def log_auth_data(self) -> None:
-    # masked_data = self.mask_auth_data(self.auth_data["plex"])
-    # LOGGER.debug(f"Authentication initialized with auth_data: {masked_data}")
-
 
 class PlexAuthentication(Authentication):
     def __init__(self, baseurl: Optional[str] = None, token: Optional[str] = None) -> None:
         auth_data = {"plex": {"baseurl": baseurl, "token": token}} if baseurl and token else None
         super().__init__(auth_data)
-        # self.log_auth_data()
 
     @property
     def baseurl(self) -> str:

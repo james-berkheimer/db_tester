@@ -5,8 +5,8 @@ import time
 import click
 
 from .app import app
-from .extensions import db
-from .utils.logger import create_logger
+from .database.extensions import db
+from .utils import create_logger
 
 
 @click.command()

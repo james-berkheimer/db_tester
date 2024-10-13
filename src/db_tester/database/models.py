@@ -3,7 +3,7 @@ from typing import List, Optional
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Table, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from ..extensions import db
+from .extensions import db
 
 playlist_track = Table(
     "playlist_track",

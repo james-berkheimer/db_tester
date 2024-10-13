@@ -2,7 +2,7 @@ import logging
 from typing import Dict, List, Tuple, Union
 
 # from ..app import app
-from ..extensions import db
+from .extensions import db
 from .models import Episode, Movie, Photo, Playlist, Track
 
 logger = logging.getLogger("app_logger")

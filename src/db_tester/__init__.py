@@ -1,7 +1,7 @@
 import json
 import os
 
-cred_path = "/home/james/code/plex_restful/tests/.plex_cred/credentials.json"
+cred_path = "/home/james/code/db_tester/tests/.plex_cred/credentials.json"
 with open(cred_path, "r") as f:
     data = json.load(f)
     plex_data = data.get("plex", {})

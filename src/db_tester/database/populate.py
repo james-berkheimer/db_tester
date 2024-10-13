@@ -2,9 +2,10 @@ import logging
 import traceback
 from typing import Dict, List, Optional, Tuple
 
-# from ..app import app
-from ..extensions import db
 from ..plex import get_server
+
+# from ..app import app
+from .extensions import db
 from .helpers import get_out_of_date_data, get_playlists_to_add_and_remove
 from .models import Episode, Movie, Photo, Playlist, Track
 from .parsers import parse_playlist_item_updates, parse_playlists

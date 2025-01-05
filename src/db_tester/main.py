@@ -25,6 +25,8 @@ def main(debugger, host, port, verbose):
     logger = create_logger(level=log_level)
     app.logger = logger
 
+    print(f"Plex Cred: {os.getenv('PLEX_CRED')}")
+
     init_db()
 
     os.environ["FLASK_APP"] = "db_tester.app"
